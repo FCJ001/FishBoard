@@ -88,15 +88,15 @@ const getItemStyle = (index, position) => {
     // 上方骨线 (/)
     return {
       bottom: `${offset}px`,
-      left: '50%',
-      transform: `translateX(${x - 2}px) translateX(-100%)`, 
+      left: '92%',
+      transform: `translateX(${-x - 2}px) translateX(-100%)`, 
       width: '60px'
     }
   } else {
     // 下方骨线 (\)
     return {
       top: `${offset}px`,
-      left: '50%',
+      left: '90%',
       transform: `translateX(${-x - 2}px) translateX(-100%)`, 
       width: '60px'
     }
@@ -139,9 +139,6 @@ const getDiagonalHeight = (itemCount) => {
                 <div class="category-header">
                   <a-input v-model="node.top.name" size="small" placeholder="分类名称" class="category-input" />
                   <div class="header-actions">
-                    <a-button type="text" shape="circle" size="mini" @click="addItem(node.top)" title="添加原因">
-                      <template #icon><icon-plus /></template>
-                    </a-button>
                     <a-button type="text" status="danger" shape="circle" size="mini" @click="removeCategoryFromNode(node, 'top')">
                       <template #icon><icon-delete /></template>
                     </a-button>
@@ -149,7 +146,11 @@ const getDiagonalHeight = (itemCount) => {
                 </div>
 
                 <!-- Diagonal Line -->
-                <div class="diagonal-line" :style="{ height: getDiagonalHeight(node.top.items.length) }"></div>
+                <div class="diagonal-line" :style="{ height: getDiagonalHeight(node.top.items.length) }">
+                  <div class="add-item-btn" @click.stop="addItem(node.top)" title="添加原因">
+                    <icon-plus />
+                  </div>
+                </div>
                 
                 <!-- Items List -->
                 <div class="items-list">
@@ -185,15 +186,16 @@ const getDiagonalHeight = (itemCount) => {
             <template v-if="node.bottom">
               <div class="category-group">
                 <!-- Diagonal Line -->
-                <div class="diagonal-line" :style="{ height: getDiagonalHeight(node.bottom.items.length) }"></div>
+                <div class="diagonal-line" :style="{ height: getDiagonalHeight(node.bottom.items.length) }">
+                  <div class="add-item-btn" @click.stop="addItem(node.bottom)" title="添加原因">
+                    <icon-plus />
+                  </div>
+                </div>
                 
                 <!-- Category Header -->
                 <div class="category-header">
                   <a-input v-model="node.bottom.name" size="small" placeholder="分类名称" class="category-input" />
                   <div class="header-actions">
-                    <a-button type="text" shape="circle" size="mini" @click="addItem(node.bottom)" title="添加原因">
-                      <template #icon><icon-plus /></template>
-                    </a-button>
                     <a-button type="text" status="danger" shape="circle" size="mini" @click="removeCategoryFromNode(node, 'bottom')">
                       <template #icon><icon-delete /></template>
                     </a-button>
@@ -407,6 +409,52 @@ const getDiagonalHeight = (itemCount) => {
   margin-top: -2px; /* Connect to spine */
 }
 
+/* Add Item Button on Diagonal Line */
+.add-item-btn {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 1px solid #555;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  left: 50%;
+  margin-left: -8px; /* Center (width/2) */
+  z-index: 10;
+  font-size: 10px;
+  color: #555;
+  transition: all 0.2s;
+}
+
+.add-item-btn:hover {
+  background: #eee;
+  color: #000;
+  transform: scale(1.2);
+}
+
+/* Position for Top Line */
+.top .diagonal-line .add-item-btn {
+  top: 10px; /* Near the top (Header side) */
+  transform: skewX(-30deg); /* Undo skew */
+}
+
+.top .diagonal-line .add-item-btn:hover {
+  transform: skewX(-30deg) scale(1.2);
+}
+
+/* Position for Bottom Line */
+.bottom .diagonal-line .add-item-btn {
+  bottom: 10px; /* Near the bottom (Header side) */
+  transform: skewX(30deg); /* Undo skew */
+}
+
+.bottom .diagonal-line .add-item-btn:hover {
+  transform: skewX(30deg) scale(1.2);
+}
+
 /* Category Content Styling */
 .category-header {
   background: white; 
@@ -464,23 +512,68 @@ const getDiagonalHeight = (itemCount) => {
   gap: 4px;
 }
 
-/* Item Styling as Horizontal Line */
+/* Item Styling */
 .item-row {
   position: absolute;
-  border-bottom: 1px solid #777; 
   padding-bottom: 0;
   display: flex;
-  align-items: flex-end; 
+  align-items: center; 
   gap: 4px;
   pointer-events: auto;
+  width: 120px !important; /* Increase width */
+  justify-content: flex-end; /* Align to right */
+}
+
+/* The connecting line segment */
+.item-row::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 40px; /* Fixed connector length */
+  height: 1px;
+  background: #777;
+  z-index: 1;
+}
+
+.item-input {
+  width: 80px; /* Remaining space for text */
+  margin-right: 40px; /* Space for the line */
+  z-index: 2; /* Ensure input is clickable */
 }
 
 .item-input :deep(.arco-input) {
+  background: white !important; /* White bg for box */
+  border: 1px solid #ddd !important; /* Add border to make it a box */
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 0.8em;
+  text-align: center; 
+  height: 24px;
+  line-height: 22px;
+  transform: none; /* Reset any transform */
+}
+
+.item-input :deep(.arco-input-wrapper) {
   background: transparent !important;
   border: none !important;
   padding: 0;
-  font-size: 0.8em;
-  text-align: center; 
+  box-shadow: none !important;
+}
+
+/* Position delete button at the left of the input box */
+.item-row .arco-btn {
+  position: absolute;
+  left: -25px; /* Move to left of input */
+  top: 50%;
+  transform: translateY(-50%);
+  right: auto; /* Reset right */
+  opacity: 0; 
+  transition: opacity 0.2s;
+}
+
+.item-row:hover .arco-btn {
+  opacity: 1;
 }
 
 .item-row .arco-btn {
