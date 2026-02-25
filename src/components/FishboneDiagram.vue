@@ -76,8 +76,8 @@ const removeItem = (category, index) => {
 
 const getItemStyle = (index, position) => {
   // 基础间距
-  const baseSpacing = 20;
-  const startOffset = 15;
+  const baseSpacing = 80; // 再次增加间距
+  const startOffset = 40; 
   const offset = startOffset + (index * baseSpacing);
   
   // 计算水平偏移量以保持在斜线上
@@ -88,27 +88,89 @@ const getItemStyle = (index, position) => {
     // 上方骨线 (/)
     return {
       bottom: `${offset}px`,
-      left: '92%',
-      transform: `translateX(${-x - 2}px) translateX(-100%)`, 
-      width: '60px'
+      left: '50%',
+      transform: `translateX(${-x - 50}px)`,
+      width: '120px'
     }
   } else {
     // 下方骨线 (\)
     return {
       top: `${offset}px`,
-      left: '90%',
-      transform: `translateX(${-x - 2}px) translateX(-100%)`, 
-      width: '60px'
+      left: '50%',
+      transform: `translateX(${-x - 50}px)`,
+      width: '120px'
     }
   }
 }
 
-/* 根据项目数量计算斜线高度 */
+/* 根据项目数量计算斜线高度 (数值) */
+const calcDiagonalHeightNum = (itemCount) => {
+  const itemHeight = 100; // 对应 baseSpacing + margin，确保足够
+  const minHeight = 200; 
+  
+  // 基础高度 + (数量 * 单项高度)
+  // 预留一些空间给加号按钮
+  const requiredHeight = (itemCount * itemHeight) + 100;
+  
+  return Math.max(minHeight, requiredHeight);
+}
+
+/* 获取斜线高度样式 */
 const getDiagonalHeight = (itemCount) => {
-  const baseHeight = 100;
-  const itemSpacing = 20; 
-  const requiredHeight = (itemCount * 20) + 40;
-  return Math.max(baseHeight, requiredHeight) + 'px';
+  return calcDiagonalHeightNum(itemCount) + 'px';
+}
+
+const getHeaderStyle = (itemCount, position) => {
+  const height = calcDiagonalHeightNum(itemCount);
+  const x = height * 0.577; // horizontal shift due to skew
+  
+  if (position === 'top') {
+    // Top Line: SkewX(30deg).
+    // This pushes the top of the line to the LEFT relative to the bottom origin.
+    // So we must move the header LEFT to follow it.
+    return {
+      transform: `translateX(${-x}px)`
+    };
+  } else {
+    // Bottom Line: SkewX(-30deg).
+    // This pushes the bottom of the line to the LEFT relative to the top origin.
+    // Wait... if Bottom moves left, then Header (which is at top origin) stays put?
+    // No, Header is *below* Line in DOM for bottom slot?
+    // Let's check DOM order.
+    
+    // Bottom Slot:
+    // <line>
+    // <header>
+    // <items>
+    
+    // Line is FIRST. Header is SECOND.
+    // So Header is *below* Line.
+    // Line origin is Top Center.
+    // Line bottom is shifted LEFT (SkewX(-30deg)).
+    // Header is at Line bottom.
+    // So Header must move LEFT.
+    
+    return {
+      transform: `translateX(${-x}px)`
+    };
+  }
+}
+
+/* 获取节点槽位的最小高度，确保上下对称 */
+const getNodeSlotStyle = (node) => {
+  const topCount = node.top ? node.top.items.length : 0;
+  const bottomCount = node.bottom ? node.bottom.items.length : 0;
+  
+  const hTop = calcDiagonalHeightNum(topCount);
+  const hBottom = calcDiagonalHeightNum(bottomCount);
+  
+  // 取最大值作为两个槽位的高度，加上头部和padding的预估高度
+  // 头部约 40px，padding 约 20px
+  const maxH = Math.max(hTop, hBottom) + 80;
+  
+  return {
+    minHeight: `${maxH}px`
+  };
 }
 </script>
 
@@ -132,11 +194,11 @@ const getDiagonalHeight = (itemCount) => {
         <div v-for="(node, index) in fishboneData.nodes" :key="node.id" class="spine-node">
           
           <!-- Top Slot -->
-          <div class="node-slot top">
+          <div class="node-slot top" :style="getNodeSlotStyle(node)">
             <template v-if="node.top">
               <div class="category-group">
                 <!-- Category Header -->
-                <div class="category-header">
+                <div class="category-header" :style="getHeaderStyle(node.top.items.length, 'top')">
                   <a-input v-model="node.top.name" size="small" placeholder="分类名称" class="category-input" />
                   <div class="header-actions">
                     <a-button type="text" status="danger" shape="circle" size="mini" @click="removeCategoryFromNode(node, 'top')">
@@ -154,11 +216,16 @@ const getDiagonalHeight = (itemCount) => {
                 
                 <!-- Items List -->
                 <div class="items-list">
-                  <div v-for="(item, i) in node.top.items" :key="item.id" class="item-row" :style="getItemStyle(i, 'top')">
-                    <a-input v-model="item.name" size="mini" class="item-input" />
-                    <a-button type="text" status="danger" shape="circle" size="mini" @click="removeItem(node.top, i)">
-                      <template #icon><icon-close /></template>
-                    </a-button>
+                  <div v-for="(item, i) in node.top.items" :key="item.id" class="item-wrapper" :style="getItemStyle(i, 'top')">
+                    <!-- The content box (Left) -->
+                    <div class="item-content">
+                      <a-input v-model="item.name" size="mini" class="item-input" />
+                      <div class="delete-item-btn" @click="removeItem(node.top, i)">
+                        <icon-close />
+                      </div>
+                    </div>
+                    <!-- The horizontal bone line (Right) -->
+                    <div class="item-bone"></div>
                   </div>
                 </div>
               </div>
@@ -182,7 +249,7 @@ const getDiagonalHeight = (itemCount) => {
           </div>
 
           <!-- Bottom Slot -->
-          <div class="node-slot bottom">
+          <div class="node-slot bottom" :style="getNodeSlotStyle(node)">
             <template v-if="node.bottom">
               <div class="category-group">
                 <!-- Diagonal Line -->
@@ -193,7 +260,7 @@ const getDiagonalHeight = (itemCount) => {
                 </div>
                 
                 <!-- Category Header -->
-                <div class="category-header">
+                <div class="category-header" :style="getHeaderStyle(node.bottom.items.length, 'bottom')">
                   <a-input v-model="node.bottom.name" size="small" placeholder="分类名称" class="category-input" />
                   <div class="header-actions">
                     <a-button type="text" status="danger" shape="circle" size="mini" @click="removeCategoryFromNode(node, 'bottom')">
@@ -204,11 +271,16 @@ const getDiagonalHeight = (itemCount) => {
 
                 <!-- Items List -->
                 <div class="items-list">
-                  <div v-for="(item, i) in node.bottom.items" :key="item.id" class="item-row" :style="getItemStyle(i, 'bottom')">
-                    <a-input v-model="item.name" size="mini" class="item-input" />
-                    <a-button type="text" status="danger" shape="circle" size="mini" @click="removeItem(node.bottom, i)">
-                      <template #icon><icon-close /></template>
-                    </a-button>
+                  <div v-for="(item, i) in node.bottom.items" :key="item.id" class="item-wrapper" :style="getItemStyle(i, 'bottom')">
+                    <!-- The content box (Left) -->
+                    <div class="item-content">
+                      <a-input v-model="item.name" size="mini" class="item-input" />
+                      <div class="delete-item-btn" @click="removeItem(node.bottom, i)">
+                        <icon-close />
+                      </div>
+                    </div>
+                    <!-- The horizontal bone line (Right) -->
+                    <div class="item-bone"></div>
                   </div>
                 </div>
               </div>
@@ -298,36 +370,40 @@ const getDiagonalHeight = (itemCount) => {
 .nodes-container {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: stretch; /* Stretch nodes to full height */
   position: relative;
   z-index: 2;
   gap: 60px; /* Gap between nodes */
   padding: 0 40px;
+  min-height: 100%; /* Fill parent */
 }
 
 .spine-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 160px; /* Width of a category group */
+  min-width: 160px;
+  justify-content: center; /* Center content vertically around spine */
 }
 
+/* Slot containers */
 .node-slot {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end; /* Align to bottom for top slot */
-  min-height: 200px; /* Height for bone */
   width: 100%;
+  flex: 1 0 auto; /* Grow, don't shrink, basis auto */
+  min-height: 200px; /* Minimum height */
+  position: relative;
 }
 
 .node-slot.top {
-  justify-content: flex-end;
+  justify-content: flex-end; /* Align content to bottom (near spine) */
   padding-bottom: 0;
 }
 
 .node-slot.bottom {
-  justify-content: flex-start; /* Align to top for bottom slot */
+  justify-content: flex-start; /* Align content to top (near spine) */
   padding-top: 0;
 }
 
@@ -512,46 +588,44 @@ const getDiagonalHeight = (itemCount) => {
   gap: 4px;
 }
 
-/* Item Styling */
-.item-row {
+/* Item Wrapper: Positioned relative to diagonal line */
+.item-wrapper {
   position: absolute;
-  padding-bottom: 0;
+  /* width: 120px;  Total width: Bone (40px) + Content (80px) */
   display: flex;
-  align-items: center; 
-  gap: 4px;
+  align-items: center;
+  justify-content: flex-end; /* Align everything to right */
   pointer-events: auto;
-  width: 120px !important; /* Increase width */
-  justify-content: flex-end; /* Align to right */
+  z-index: 5;
 }
 
-/* The connecting line segment */
-.item-row::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 50%;
-  width: 40px; /* Fixed connector length */
-  height: 1px;
-  background: #777;
-  z-index: 1;
+/* The Horizontal Bone Line */
+.item-bone {
+  width: 40px; /* Fixed length */
+  height: 2px; /* Same thickness as diagonal line */
+  background-color: #555;
+  flex-shrink: 0;
+  /* margin-left: -1px;  Overlap slightly if needed */
 }
 
-.item-input {
-  width: 80px; /* Remaining space for text */
-  margin-right: 40px; /* Space for the line */
-  z-index: 2; /* Ensure input is clickable */
+/* The Content Box */
+.item-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 0; /* No margin needed now as it's to the left */
 }
 
 .item-input :deep(.arco-input) {
-  background: white !important; /* White bg for box */
-  border: 1px solid #ddd !important; /* Add border to make it a box */
+  background: white !important;
+  border: 1px solid #555 !important; /* Match line color */
   border-radius: 4px;
   padding: 0 4px;
   font-size: 0.8em;
-  text-align: center; 
+  text-align: center;
   height: 24px;
   line-height: 22px;
-  transform: none; /* Reset any transform */
+  width: 80px;
 }
 
 .item-input :deep(.arco-input-wrapper) {
@@ -561,38 +635,29 @@ const getDiagonalHeight = (itemCount) => {
   box-shadow: none !important;
 }
 
-/* Position delete button at the left of the input box */
-.item-row .arco-btn {
+/* Delete Button for Item */
+.delete-item-btn {
   position: absolute;
-  left: -25px; /* Move to left of input */
+  left: -20px;
   top: 50%;
   transform: translateY(-50%);
-  right: auto; /* Reset right */
-  opacity: 0; 
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
   transition: opacity 0.2s;
+  color: #999;
 }
 
-.item-row:hover .arco-btn {
+.item-wrapper:hover .delete-item-btn {
   opacity: 1;
 }
 
-.item-row .arco-btn {
-  position: absolute;
-  right: -20px;
-  top: -10px;
-  opacity: 0; 
-  transition: opacity 0.2s;
-}
-
-.item-row:hover .arco-btn {
-  opacity: 1;
-}
-
-.item-input :deep(.arco-input-wrapper) {
-  background: transparent !important;
-  border: none !important;
-  padding: 0;
-  box-shadow: none !important;
+.delete-item-btn:hover {
+  color: #f53f3f;
 }
 
 /* Head Styling */
